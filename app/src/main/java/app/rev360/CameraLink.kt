@@ -65,24 +65,31 @@ class CameraLink(private val context: Context) {
      * [onResult] runs on the main thread, exactly once per call.
      */
     fun requestCameraAp(ssid: String, passphrase: String?, onResult: (Result<Network>) -> Unit) {
+        // Android matches an SSID byte for byte, and the name on the camera's
+        // little screen is not the name it broadcasts: a screen showing
+        // "Gear360(74:6C)" was seen on air as "AP_Gear 360(7F:74:6C)". So try
+        // the exact name first, then widen to the prefixes both forms share
+        // and let the system's own picker settle which network it is.
+        val patterns = listOf("AP_Gear", "Gear")
+        fun widen(index: Int) {
+            if (index >= patterns.size) {
+                onResult(
+                    Result.failure(
+                        OscException(
+                            "Android vond geen netwerk voor \"$ssid\", en ook niet voor " +
+                                "namen die met \"AP_Gear\" of \"Gear\" beginnen. Staat de " +
+                                "camera aan, met wifi aan?"
+                        )
+                    )
+                )
+                return
+            }
+            attempt(patterns[index], passphrase, exact = false) { result ->
+                if (result.isSuccess) onResult(result) else widen(index + 1)
+            }
+        }
         attempt(ssid, passphrase, exact = true) { first ->
-            if (first.isSuccess) {
-                onResult(first)
-                return@attempt
-            }
-            // Android matches the SSID byte for byte. A name shown on a small
-            // camera screen is easy to mistype, and some firmware appends
-            // characters that are not visible there. Fall back to everything
-            // that starts with the same word, and let the system's own picker
-            // settle which network it is.
-            val prefix = ssid.substringBefore('(').trim()
-            if (prefix.isEmpty() || prefix == ssid) {
-                onResult(first)
-                return@attempt
-            }
-            attempt(prefix, passphrase, exact = false) { second ->
-                onResult(second)
-            }
+            if (first.isSuccess) onResult(first) else widen(0)
         }
     }
 

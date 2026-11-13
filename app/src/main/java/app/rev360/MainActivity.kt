@@ -221,6 +221,13 @@ class MainActivity : AppCompatActivity() {
                 last = e
             }
         }
+        // Nothing spoke OSC. Report what the camera DOES serve, so the next
+        // step is based on a measurement rather than another guess: a Gear 360
+        // was seen carrying a Samsung UPnP media server on port 7676 instead.
+        runOnUiThread { log("Geen OSC gevonden. Kijken wat er wel open staat …") }
+        CameraProbe.inspect(Session.network, gateway) { line ->
+            runOnUiThread { log(line) }
+        }
         throw last ?: OscException("Geen enkel adres antwoordde op /osc/info")
     }
 
