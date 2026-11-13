@@ -277,13 +277,49 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val url = withContext(Dispatchers.IO) { client.takePicture(info) }
-                if (url != null) log("Foto gemaakt: $url") else log("Foto gemaakt.")
+                if (url != null) {
+                    log("Foto gemaakt: $url")
+                    showLastShot(url)
+                } else {
+                    // Some firmware answers without a URL. The newest file on
+                    // the card is then the one we just took.
+                    log("Foto gemaakt. De camera gaf geen bestandsnaam terug, " +
+                        "dus de nieuwste op de kaart wordt opgehaald.")
+                    val newest = withContext(Dispatchers.IO) {
+                        runCatching { client.listMedia(info, limit = 1).firstOrNull() }.getOrNull()
+                    }
+                    if (newest != null) showLastShot(newest.fileUrl) else log("Niets gevonden.")
+                }
             } catch (e: Exception) {
                 log("Sluiter mislukte: ${e.message}")
                 (e as? OscException)?.detail?.let { log("Antwoord: $it") }
             } finally {
                 views.shutter.isEnabled = true
             }
+        }
+    }
+
+
+    /**
+     * Shows the picture that was just taken. There is no live viewfinder on
+     * this camera, so the shot you just made is the closest thing to one.
+     */
+    private fun showLastShot(fileUrl: String) {
+        views.lastShotLabel.visibility = android.view.View.VISIBLE
+        views.lastShotLabel.text = "Laatste opname — ophalen…"
+        lifecycleScope.launch {
+            val bitmap = withContext(Dispatchers.IO) {
+                ImageLoader.load(Session.network, fileUrl, maxPx = 1200)
+            }
+            if (bitmap == null) {
+                views.lastShotLabel.text = "Laatste opname kon niet worden opgehaald."
+                return@launch
+            }
+            views.lastShot.setImageBitmap(bitmap)
+            views.lastShot.visibility = android.view.View.VISIBLE
+            views.lastShotLabel.text =
+                "Laatste opname · ${bitmap.width}x${bitmap.height} getoond " +
+                    "(verkleind) · ${fileUrl.substringAfterLast('/')}"
         }
     }
 

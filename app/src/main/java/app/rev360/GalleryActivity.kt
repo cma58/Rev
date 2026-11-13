@@ -130,6 +130,25 @@ class GalleryActivity : AppCompatActivity() {
                 if (entry.width > 0) append(" · ").append(entry.width).append("×").append(entry.height)
                 entry.taken?.let { append(" · ").append(it) }
             }
+            // Thumbnails load lazily, and the tag guards against a recycled
+            // row showing the picture of the row it used to be.
+            holder.binding.thumb.setImageDrawable(null)
+            holder.binding.thumb.tag = entry.fileUrl
+            if (!entry.isVideo) {
+                val cached = ImageLoader.cached(entry.fileUrl, THUMB_PX)
+                if (cached != null) {
+                    holder.binding.thumb.setImageBitmap(cached)
+                } else {
+                    lifecycleScope.launch {
+                        val bitmap = withContext(Dispatchers.IO) {
+                            ImageLoader.load(Session.network, entry.fileUrl, THUMB_PX)
+                        }
+                        if (bitmap != null && holder.binding.thumb.tag == entry.fileUrl) {
+                            holder.binding.thumb.setImageBitmap(bitmap)
+                        }
+                    }
+                }
+            }
             holder.binding.root.setOnClickListener { download(entry) }
             holder.binding.root.setOnLongClickListener {
                 confirmDelete(entry)
@@ -139,4 +158,9 @@ class GalleryActivity : AppCompatActivity() {
     }
 
     private inner class Holder(val binding: ItemMediaBinding) : RecyclerView.ViewHolder(binding.root)
+
+    private companion object {
+        /** Small enough to keep dozens in memory, big enough to recognise. */
+        const val THUMB_PX = 256
+    }
 }

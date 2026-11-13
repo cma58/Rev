@@ -3,9 +3,25 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?android:attr/selectableItemBackground"
-    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingVertical="10dp">
+
+    <ImageView
+        android:id="@+id/thumb"
+        android:layout_width="72dp"
+        android:layout_height="48dp"
+        android:layout_marginEnd="12dp"
+        android:background="#20808080"
+        android:contentDescription="Miniatuur"
+        android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
 
     <TextView
         android:id="@+id/name"
@@ -19,4 +35,5 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="12sp" />
+    </LinearLayout>
 </LinearLayout>
