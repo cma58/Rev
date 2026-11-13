@@ -160,11 +160,20 @@ class MainActivity : AppCompatActivity() {
         handshake()
     }
 
-    /** Ask the camera who it is, then read its battery and card. */
+    /**
+     * Ask the camera who it is, then read its battery and card.
+     *
+     * Which address and port the OSC server sits on differs between firmware
+     * versions, so try the likely ones and keep the first that answers rather
+     * than hardcoding one and failing silently.
+     */
     private fun handshake() {
-        val client = Session.client ?: return
+        val gateway = Session.host ?: return
         lifecycleScope.launch {
             try {
+                val (client, reached) = withContext(Dispatchers.IO) { probe(gateway) }
+                Session.host = reached
+                if (reached != gateway) log("Gevonden op $reached.")
                 val info = withContext(Dispatchers.IO) { client.info() }
                 Session.info = info
                 views.cameraInfo.text = buildString {
@@ -185,6 +194,34 @@ class MainActivity : AppCompatActivity() {
                 (e as? OscException)?.detail?.let { log("Antwoord: $it") }
             }
         }
+    }
+
+
+    /** Candidate addresses, in the order worth trying. */
+    private fun candidates(gateway: String): List<String> {
+        val hosts = linkedSetOf(gateway, "192.168.107.1", "192.168.43.1")
+        val ports = listOf(80, 8080)
+        val out = mutableListOf<String>()
+        for (host in hosts) {
+            for (port in ports) {
+                out.add(if (port == 80) host else "$host:$port")
+            }
+        }
+        return out
+    }
+
+    private fun probe(gateway: String): Pair<OscClient, String> {
+        var last: Exception? = null
+        for (candidate in candidates(gateway)) {
+            val client = OscClient(candidate, Session.network)
+            try {
+                client.info()
+                return client to candidate
+            } catch (e: Exception) {
+                last = e
+            }
+        }
+        throw last ?: OscException("Geen enkel adres antwoordde op /osc/info")
     }
 
     private fun readState() {
