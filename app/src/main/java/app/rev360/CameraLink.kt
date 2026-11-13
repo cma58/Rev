@@ -7,9 +7,9 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PatternMatcher
 import java.net.Inet4Address
 
 /**
@@ -65,9 +65,40 @@ class CameraLink(private val context: Context) {
      * [onResult] runs on the main thread, exactly once per call.
      */
     fun requestCameraAp(ssid: String, passphrase: String?, onResult: (Result<Network>) -> Unit) {
+        attempt(ssid, passphrase, exact = true) { first ->
+            if (first.isSuccess) {
+                onResult(first)
+                return@attempt
+            }
+            // Android matches the SSID byte for byte. A name shown on a small
+            // camera screen is easy to mistype, and some firmware appends
+            // characters that are not visible there. Fall back to everything
+            // that starts with the same word, and let the system's own picker
+            // settle which network it is.
+            val prefix = ssid.substringBefore('(').trim()
+            if (prefix.isEmpty() || prefix == ssid) {
+                onResult(first)
+                return@attempt
+            }
+            attempt(prefix, passphrase, exact = false) { second ->
+                onResult(second)
+            }
+        }
+    }
+
+    private fun attempt(
+        ssid: String,
+        passphrase: String?,
+        exact: Boolean,
+        onResult: (Result<Network>) -> Unit,
+    ) {
         release()
         val specifier = WifiNetworkSpecifier.Builder().apply {
-            setSsid(ssid)
+            if (exact) {
+                setSsid(ssid)
+            } else {
+                setSsidPattern(PatternMatcher(ssid, PatternMatcher.PATTERN_PREFIX))
+            }
             if (!passphrase.isNullOrBlank()) setWpa2Passphrase(passphrase)
         }.build()
 
@@ -88,12 +119,13 @@ class CameraLink(private val context: Context) {
             override fun onUnavailable() {
                 if (settled) return
                 settled = true
+                val how = if (exact) "\"$ssid\"" else "namen die beginnen met \"$ssid\""
                 main.post {
                     onResult(
                         Result.failure(
                             OscException(
-                                "Geen verbinding met \"$ssid\". Staat de camera aan en in " +
-                                    "Street View-modus, en is het wachtwoord juist?"
+                                "Android vond geen netwerk voor $how. Staat de camera aan " +
+                                    "en in Street View-modus, en staat wifi van de telefoon aan?"
                             )
                         )
                     )
@@ -105,11 +137,7 @@ class CameraLink(private val context: Context) {
             }
         }
         callback = cb
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            manager.requestNetwork(request, cb, 40_000)
-        } else {
-            manager.requestNetwork(request, cb)
-        }
+        manager.requestNetwork(request, cb, 40_000)
     }
 
     /** Hands the camera's network back to the system. */

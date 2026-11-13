@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  De camera spreekt alleen onversleuteld HTTP, op zijn eigen access point.
+  Android blokkeert dat sinds versie 9 standaard. Hier staan we het toe:
+  er is geen alternatief, de camera kan geen TLS, en het verkeer verlaat
+  het directe netwerkje tussen telefoon en camera niet.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
