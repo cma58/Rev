@@ -130,6 +130,14 @@
             android:enabled="false"
             android:text="Bekijk wat op de camera staat" />
 
+        <Button
+            android:id="@+id/openDiagnose"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Waarom werkt live beeld niet? (diagnose)" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

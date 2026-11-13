@@ -19,6 +19,15 @@
         android:name="android.permission.ACCESS_FINE_LOCATION"
         android:maxSdkVersion="32" />
 
+
+    <!-- Android 11+ hides other apps unless we name them here. -->
+    <queries>
+        <package android:name="com.samsung.accessory" />
+        <package android:name="com.samsung.android.samsunggear360manager" />
+        <package android:name="com.samsung.android.gear360manager" />
+        <package android:name="com.samsung.android.app.watchmanager" />
+    </queries>
+
     <uses-feature android:name="android.hardware.wifi" android:required="true" />
 
     <application
@@ -40,6 +49,11 @@
             android:name=".GalleryActivity"
             android:exported="false"
             android:label="@string/gallery_title"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".DiagnoseActivity"
+            android:exported="false"
+            android:label="Diagnose"
             android:parentActivityName=".MainActivity" />
     </application>
 </manifest>

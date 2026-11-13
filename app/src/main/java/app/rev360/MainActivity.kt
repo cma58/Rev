@@ -28,9 +28,17 @@ class MainActivity : AppCompatActivity() {
     private val clock = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private var intervalJob: Job? = null
 
+    private var askForDiagnose = false
+
     private val askPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            val forDiagnose = askForDiagnose
+            askForDiagnose = false
             if (granted) {
+                if (forDiagnose) {
+                    startActivity(Intent(this, DiagnoseActivity::class.java))
+                    return@registerForActivityResult
+                }
                 connectToAccessPoint()
             } else {
                 log("Toestemming geweigerd. Zonder die toestemming mag de app geen " +
@@ -63,6 +71,20 @@ class MainActivity : AppCompatActivity() {
         views.intervalToggle.setOnClickListener { toggleInterval() }
         views.openGallery.setOnClickListener {
             startActivity(Intent(this, GalleryActivity::class.java))
+        }
+
+        // The diagnosis needs the same nearby-devices permission as the
+        // Wi-Fi Direct read it performs, so ask before opening it.
+        views.openDiagnose.setOnClickListener {
+            val permission = nearbyPermission()
+            if (ContextCompat.checkSelfPermission(this, permission) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                askForDiagnose = true
+                askPermission.launch(permission)
+            } else {
+                startActivity(Intent(this, DiagnoseActivity::class.java))
+            }
         }
 
         log("Klaar. Zet de camera in Street View-modus en verbind.")
